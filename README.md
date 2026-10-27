@@ -136,17 +136,22 @@ On x86 CPU in float32, with tiny random checkpoints:
 On an NVIDIA A40 (FlashAttention, Model Runner V2):
 
 - **Tiny checkpoint, float16**: all tests pass.
+- **Tiny checkpoint, float32**: generation passes with the PyTorch attention in
+  eager mode, and so does the merged-attention test. The LoRA tests do not run
+  in float32 on GPU, because vLLM's LoRA kernels need float16 or bfloat16.
 - **`google/t5gemma-2-270m-270m`, bfloat16**: generation with text, images
   and explicit decoder prompts matches HF, and LoRA matches HF + PEFT. The
   LoRA test passed in a separate run, after lowering its random LoRA scale to
   0.01.
 - **Without the Model Runner V2 fix** in vLLM (`[Model Runner V2][LoRA] Build
   the tower LoRA mapping of encoder-decoder models in batch order`), the LoRA
-  test fails with both checkpoints: requests without an adapter run their
-  encoder with another request's adapter.
+  test fails with both checkpoints: a request's encoder runs with another
+  request's adapter. The first mismatch is a request with an adapter on the
+  tiny checkpoint, and a request without one on the real checkpoint.
 
-Not validated yet: the PyTorch attention on GPU (GPUs without FlashAttention
-such as T4, or `float32`), Blackwell, and tensor parallelism.
+Not validated yet: GPUs without FlashAttention (e.g. T4), Blackwell, and tensor
+parallelism. On the A40, `float32` runs the same PyTorch attention that such
+GPUs use.
 
 ## Acknowledgements
 
