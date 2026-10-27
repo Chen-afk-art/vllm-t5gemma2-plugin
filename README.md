@@ -114,7 +114,8 @@ architecture, so they need neither a GPU nor access to the gated weights.
   against HF + PEFT for LoRA), token by token, with requests mixed in one batch.
 - **Dtype**: the tiny checkpoint runs in float32 on CPU and in float16 on GPU,
   where vLLM's LoRA kernels need float16 or bfloat16. Real checkpoints run in
-  bfloat16.
+  bfloat16. `T5GEMMA2_TEST_DTYPE` overrides this; with `float32` on GPU, the
+  LoRA tests are skipped.
 - **Engine process**: the tests run the vLLM engine in the test process
   (`VLLM_ENABLE_V1_MULTIPROCESSING=0`), so that all requests of a batch arrive
   before its first step. That lets the LoRA test catch a tower LoRA mapping

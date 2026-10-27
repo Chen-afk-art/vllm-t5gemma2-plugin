@@ -22,6 +22,11 @@ from transformers import AutoProcessor, T5Gemma2ForConditionalGeneration
 from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
 
+pytestmark = pytest.mark.skipif(
+    DEVICE == "cuda" and DTYPE == torch.float32,
+    reason="vLLM's GPU LoRA kernels need float16 or bfloat16",
+)
+
 ATTN = r"self_attn\.(q|k|v|o)_proj"
 MLP = r"mlp\.(gate|up|down)_proj"
 ADAPTERS = {
