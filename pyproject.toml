@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vllm-t5gemma2"
+version = "0.1.0"
+description = "T5Gemma 2 (encoder-decoder, text + image) model plugin for vLLM"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+keywords = ["vllm", "t5gemma", "gemma", "encoder-decoder", "plugin"]
+dependencies = [
+    "vllm",
+    "transformers>=5.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "peft",
+]
+
+[project.entry-points."vllm.general_plugins"]
+t5gemma2 = "vllm_t5gemma2:register"
+
+[tool.setuptools]
+packages = ["vllm_t5gemma2"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.pytest.ini_options]
+markers = [
+    "real_model: needs access to a google/t5gemma-2-* checkpoint (set T5GEMMA2_TEST_MODEL)",
+]
