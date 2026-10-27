@@ -95,8 +95,8 @@ llm.generate(prompts, params, lora_request=LoRARequest("my-adapter", 1, "/path/t
 - No LoRA on the vision tower.
 - The encoder runs eagerly.
 - Chunked prefill is off, as for every encoder-decoder model in vLLM.
-- On GPU, use `bfloat16` or `float16`. With `float32` on a GPU that has
-  FlashAttention, the model fails at the first forward pass (known issue).
+- FlashAttention only runs `float16` and `bfloat16`. In `float32` the model
+  uses its PyTorch attention in eager mode on every GPU, which is slower.
 
 ## Testing
 
@@ -145,8 +145,8 @@ On an NVIDIA A40 (FlashAttention, Model Runner V2):
   test fails with both checkpoints: requests without an adapter run their
   encoder with another request's adapter.
 
-Not validated yet: GPUs without FlashAttention (e.g. T4), Blackwell, and
-tensor parallelism.
+Not validated yet: the PyTorch attention on GPU (GPUs without FlashAttention
+such as T4, or `float32`), Blackwell, and tensor parallelism.
 
 ## Acknowledgements
 

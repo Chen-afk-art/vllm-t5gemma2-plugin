@@ -357,13 +357,14 @@ class _EncoderAttnMetadata:
     max_seqlen: int
 
 
-def _get_fa_version(head_dim: int) -> int | None:
+def _get_fa_version(head_dim: int, dtype: torch.dtype) -> int | None:
     """FlashAttention version for the kernels that T5Gemma2 calls directly.
 
-    Returns `None` when FlashAttention is unavailable (off CUDA, or on GPUs
-    older than compute capability 8.0); the PyTorch path is used then.
+    Returns `None` when FlashAttention cannot run: off CUDA, on GPUs older than
+    compute capability 8.0, or for dtypes other than float16 and bfloat16. The
+    PyTorch path is used then.
     """
-    if not current_platform.is_cuda():
+    if not current_platform.is_cuda() or dtype not in (torch.float16, torch.bfloat16):
         return None
 
     from vllm.v1.attention.backends.fa_utils import get_flash_attn_version
@@ -906,7 +907,7 @@ class T5Gemma2EncoderAttention(T5Gemma2AttentionBase):
             self.window = ((sliding_window + 1) // 2 - 1, sliding_window // 2)
         else:
             self.window = (-1, -1)
-        self.fa_version = _get_fa_version(self.head_dim)
+        self.fa_version = _get_fa_version(self.head_dim, torch.get_default_dtype())
 
     def forward(
         self,
@@ -940,7 +941,7 @@ class T5Gemma2MergedAttention(T5Gemma2AttentionBase):
         # it, the PyTorch path reads and writes the caches itself, so any
         # backend works; on CUDA we pick Triton, which supports every type
         # of attention layer.
-        self.fa_version = _get_fa_version(self.head_dim)
+        self.fa_version = _get_fa_version(self.head_dim, torch.get_default_dtype())
         attn_backend: type[AttentionBackend] | None = None
         if self.fa_version is not None:
             from vllm.v1.attention.backends.flash_attn import FlashAttentionBackend
@@ -1366,12 +1367,14 @@ class T5Gemma2ForConditionalGeneration(nn.Module, SupportsMultiModal, SupportsLo
             )
         if (
             current_platform.is_cuda()
-            and _get_fa_version(config.decoder.head_dim) is None
+            and _get_fa_version(config.decoder.head_dim, vllm_config.model_config.dtype)
+            is None
             and vllm_config.compilation_config.cudagraph_mode != CUDAGraphMode.NONE
         ):
             raise ValueError(
-                "T5Gemma2 needs FlashAttention for CUDA graphs on this GPU; "
-                "pass `enforce_eager=True`."
+                "T5Gemma2 needs FlashAttention for CUDA graphs, which is "
+                "unavailable on this GPU or for this dtype; pass "
+                "`enforce_eager=True`."
             )
 
         with self._mark_composite_model(
