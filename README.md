@@ -102,6 +102,7 @@ llm.generate(prompts, params, lora_request=LoRARequest("my-adapter", 1, "/path/t
 pip install -e ".[test]"
 pytest tests                                              # tiny random checkpoint
 T5GEMMA2_TEST_MODEL=google/t5gemma-2-270m-270m pytest tests  # real checkpoint
+# On GPUs without bfloat16 (e.g. T4), add T5GEMMA2_TEST_DTYPE=float16.
 ```
 
 By default the tests build a tiny random checkpoint with the real

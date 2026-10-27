@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """HF reference generation and comparison helpers for the tests."""
 
+import os
+
 import numpy as np
 import torch
 from conftest import REAL_MODEL
@@ -9,7 +11,11 @@ from PIL import Image
 MAX_TOKENS = 16
 NUM_LOGPROBS = 5
 # The tiny checkpoint runs in float32, where vLLM matches HF token for token.
-DTYPE = torch.bfloat16 if REAL_MODEL else torch.float32
+# Set T5GEMMA2_TEST_DTYPE=float16 on GPUs without bfloat16 (e.g. T4).
+DTYPE = getattr(
+    torch,
+    os.environ.get("T5GEMMA2_TEST_DTYPE", "bfloat16" if REAL_MODEL else "float32"),
+)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
