@@ -34,11 +34,13 @@ ADAPTERS = {
 LORA_STD = 0.03 if REAL_MODEL else 0.2
 TEXT = "hello world, this is a text-only prompt!"
 CASES = [
-    # (encoder text, decoder prompt, adapter)
+    # (encoder text, decoder prompt, adapter). Model Runner V2 runs requests
+    # with a one-token decoder prompt first, so the multi-token one comes first
+    # here: the batch order then differs from the scheduling order.
+    ("explicit decoder prompt", "abc", "all"),
     (TEXT, None, "all"),
     (TEXT, None, None),
     ("a much longer encoder prompt " * 4, None, "decoder_kv"),
-    ("explicit decoder prompt", "abc", "all"),
 ]
 
 
@@ -97,7 +99,7 @@ def test_lora_matches_peft(llm: LLM, model_dir: str, adapters: dict) -> None:
         params,
         lora_request=[lora_requests.get(adapter) for *_, adapter in CASES],
     )
-    assert outputs[0].outputs[0].token_ids != outputs[1].outputs[0].token_ids, (
+    assert outputs[1].outputs[0].token_ids != outputs[2].outputs[0].token_ids, (
         "the adapter does not change the output, so the test proves nothing"
     )
 
