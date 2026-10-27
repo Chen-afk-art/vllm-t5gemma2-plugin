@@ -27,8 +27,9 @@ entry point; there is nothing to import.
 
 - **vLLM**: a build with encoder-decoder plugin support, which adds
   `EncDecMultiModalProcessor.process_text_only_encoder_prompt` and
-  `CrossAttention(underlying_attn_backend=...)`. Until that is in a release,
-  use the `encdec-plugin-support` branch of
+  `CrossAttention(underlying_attn_backend=...)`. These are proposed in
+  [vllm-project/vllm#64073](https://github.com/vllm-project/vllm/pull/64073).
+  Until they are in a release, use that PR's branch, `encdec-plugin-support` of
   [Chen-afk-art/vllm](https://github.com/Chen-afk-art/vllm/tree/encdec-plugin-support).
   On an older vLLM, the model fails at startup with an error that names the
   missing features.
