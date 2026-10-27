@@ -6,6 +6,13 @@ from vllm.v1.attention.ops.merge_attn_states import merge_attn_states
 from vllm_t5gemma2.model import _paged_attention_with_lse_torch, _write_kv_cache_torch
 
 
+@pytest.fixture(autouse=True)
+def default_device():
+    """On a GPU machine, `merge_attn_states` runs its CUDA kernel."""
+    with torch.device("cuda" if torch.cuda.is_available() else "cpu"):
+        yield
+
+
 def _make_paged_kv(
     keys: list[torch.Tensor], values: list[torch.Tensor], block_size: int
 ) -> tuple[torch.Tensor, torch.Tensor]:

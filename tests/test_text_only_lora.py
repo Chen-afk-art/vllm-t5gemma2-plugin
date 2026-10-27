@@ -30,8 +30,10 @@ ADAPTERS = {
     # Decoder k/v also project the encoder outputs into cross-attention K/V.
     "decoder_kv": r"model\.decoder\.layers\.\d+\.self_attn\.(k|v)_proj",
 }
-# Random LoRA weights large enough to change the greedy output.
-LORA_STD = 0.03 if REAL_MODEL else 0.2
+# Random LoRA weights large enough to change the greedy output. On the real
+# checkpoint, 0.03 already turns it into noise, where near-ties make vLLM and
+# HF diverge at the first token.
+LORA_STD = 0.01 if REAL_MODEL else 0.2
 TEXT = "hello world, this is a text-only prompt!"
 CASES = [
     # (encoder text, decoder prompt, adapter). Model Runner V2 runs requests

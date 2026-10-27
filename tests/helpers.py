@@ -10,13 +10,16 @@ from PIL import Image
 
 MAX_TOKENS = 16
 NUM_LOGPROBS = 5
-# The tiny checkpoint runs in float32, where vLLM matches HF token for token.
-# Set T5GEMMA2_TEST_DTYPE=float16 on GPUs without bfloat16 (e.g. T4).
-DTYPE = getattr(
-    torch,
-    os.environ.get("T5GEMMA2_TEST_DTYPE", "bfloat16" if REAL_MODEL else "float32"),
-)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# The tiny checkpoint runs in float32 on CPU. On GPU it uses float16, because
+# vLLM's GPU LoRA kernels only take float16 and bfloat16. Set
+# T5GEMMA2_TEST_DTYPE=float16 for real checkpoints on GPUs without bfloat16
+# (e.g. T4).
+_DEFAULT_DTYPE = (
+    "bfloat16" if REAL_MODEL else "float16" if DEVICE == "cuda" else "float32"
+)
+DTYPE = getattr(torch, os.environ.get("T5GEMMA2_TEST_DTYPE", _DEFAULT_DTYPE))
+LOGPROB_ATOL = 1e-3 if DTYPE == torch.float32 else 1e-2
 
 
 def random_image(seed: int, width: int, height: int) -> Image.Image:
@@ -69,8 +72,8 @@ def hf_generate(model, processor, text, images, decoder_prompt):
 def assert_matches_hf(hf_output, vllm_output, name: str) -> None:
     """vLLM must produce HF's tokens with the same logprobs.
 
-    On a real checkpoint in bfloat16, the two may diverge at a near tie,
-    where each token must be among the other's top logprobs.
+    On a real checkpoint, the two may diverge at a near tie, where each token
+    must be among the other's top logprobs.
     """
     hf_ids, hf_logprobs = hf_output
     vllm_ids = list(vllm_output.token_ids)
@@ -78,7 +81,9 @@ def assert_matches_hf(hf_output, vllm_output, name: str) -> None:
         vllm_top = vllm_output.logprobs[t]
         if hf_tok == vllm_tok and not REAL_MODEL:
             diff = abs(hf_logprobs[t][hf_tok].item() - vllm_top[hf_tok].logprob)
-            assert diff < 1e-3, f"{name}: logprob of token {t} differs by {diff}"
+            assert diff < LOGPROB_ATOL, (
+                f"{name}: logprob of token {t} differs by {diff}"
+            )
         elif hf_tok != vllm_tok:
             assert REAL_MODEL, f"{name}: token {t} differs: {hf_ids} vs {vllm_ids}"
             hf_top = hf_logprobs[t].topk(NUM_LOGPROBS).indices.tolist()

@@ -95,6 +95,8 @@ llm.generate(prompts, params, lora_request=LoRARequest("my-adapter", 1, "/path/t
 - No LoRA on the vision tower.
 - The encoder runs eagerly.
 - Chunked prefill is off, as for every encoder-decoder model in vLLM.
+- On GPU, use `bfloat16` or `float16`. With `float32` on a GPU that has
+  FlashAttention, the model fails at the first forward pass (known issue).
 
 ## Testing
 
@@ -106,9 +108,17 @@ T5GEMMA2_TEST_MODEL=google/t5gemma-2-270m-270m pytest tests  # real checkpoint
 ```
 
 By default the tests build a tiny random checkpoint with the real
-architecture, so they need neither a GPU nor access to the gated weights. They
-compare greedy generation with HF transformers (and with HF + PEFT for LoRA)
-token by token, mixing requests in one batch.
+architecture, so they need neither a GPU nor access to the gated weights.
+
+- **What they compare**: greedy generation against HF transformers (and
+  against HF + PEFT for LoRA), token by token, with requests mixed in one batch.
+- **Dtype**: the tiny checkpoint runs in float32 on CPU and in float16 on GPU,
+  where vLLM's LoRA kernels need float16 or bfloat16. Real checkpoints run in
+  bfloat16.
+- **Engine process**: the tests run the vLLM engine in the test process
+  (`VLLM_ENABLE_V1_MULTIPROCESSING=0`), so that all requests of a batch arrive
+  before its first step. That lets the LoRA test catch a tower LoRA mapping
+  built in the wrong order on Model Runner V2.
 
 ### Validation so far
 
@@ -123,9 +133,19 @@ On x86 CPU in float32, with tiny random checkpoints:
   rejected.
 - **OpenAI server**: a completion request returns the same tokens as HF.
 
-Not validated yet: the CUDA paths (FlashAttention, CUDA graphs, Triton LoRA
-kernels, Model Runner V2), tensor parallelism, and the real
-`google/t5gemma-2-*` checkpoints.
+On an NVIDIA A40 (FlashAttention, Model Runner V2):
+
+- **Tiny checkpoint, float16**: all tests pass.
+- **`google/t5gemma-2-270m-270m`, bfloat16**: all tests pass. Generation with
+  text, images and explicit decoder prompts matches HF, and LoRA matches HF +
+  PEFT.
+- **Without the Model Runner V2 fix** in vLLM (`[Model Runner V2][LoRA] Build
+  the tower LoRA mapping of encoder-decoder models in batch order`), the LoRA
+  test fails with both checkpoints: requests without an adapter run their
+  encoder with another request's adapter.
+
+Not validated yet: GPUs without FlashAttention (e.g. T4), Blackwell, and
+tensor parallelism.
 
 ## Acknowledgements
 
